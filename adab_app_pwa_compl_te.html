@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Adab - Comportement du Musulman</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#10b981">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Adab">
+    
+    <!-- Fallback Icon if not using manifest (Canvas limitation) -->
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/10b981/ffffff?text=Adab">
+    
+    <!-- Tailwind CSS (via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        arabic: ['Cairo', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Custom Styles -->
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.5); }
+        .dark .glass-panel { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .animate-slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Background Animations */
+        .blob { position: absolute; filter: blur(80px); opacity: 0.4; z-index: -1; animation: spin 20s linear infinite; }
+        .dark .blob { opacity: 0.15; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 min-h-screen transition-colors duration-300 antialiased font-sans flex flex-col relative overflow-x-hidden">
+
+    <!-- Background Blobs -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="blob w-[50vw] h-[50vw] bg-emerald-400 rounded-full top-[-10%] left-[-10%] mix-blend-multiply dark:mix-blend-screen"></div>
+        <div class="blob w-[60vw] h-[60vw] bg-violet-400 rounded-full bottom-[-10%] right-[-10%] mix-blend-multiply dark:mix-blend-screen" style="animation-direction: reverse; animation-duration: 25s;"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="relative z-10 flex flex-col min-h-screen max-w-lg mx-auto w-full sm:border-x border-white/20 dark:border-slate-800 shadow-2xl glass-panel">
+        
+        <!-- HEADER -->
+        <header class="px-5 py-4 flex items-center justify-between sticky top-0 glass-panel z-50 border-b border-white/50 dark:border-slate-700/50 rounded-t-none">
+            <div id="header-left" class="flex items-center gap-2">
+                <!-- Injected via JS -->
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Theme Toggle -->
+                <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition-all">
+                    <i data-lucide="moon" id="theme-icon" class="w-5 h-5"></i>
+                </button>
+                <!-- Lang Toggle -->
+                <button onclick="toggleLang()" id="lang-btn" class="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-3 py-2 rounded-full shadow-sm text-sm font-bold text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition-all">
+                    <i data-lucide="globe" class="w-4 h-4 text-emerald-500"></i>
+                    <span>عربي</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main id="app-content" class="flex-1 p-5 overflow-y-auto pb-24 scroll-smooth">
+            <!-- Content injected via JS -->
+        </main>
+        
+        <!-- MESSAGE BOX (Toast for sharing/favorites) -->
+        <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none translate-y-4 z-50 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-4 h-4"></i>
+            <span id="toast-msg">Action réussie</span>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const appData = {
+            ui: {
+                greeting: { fr: "Salam ! ✨", ar: "سلام! ✨" },
+                title: { fr: "Adab", ar: "أدب" },
+                dailyAdab: { fr: "Pépite du jour", ar: "جوهرة اليوم" },
+                back: { fr: "Retour", ar: "رجوع" },
+                host: { fr: "Si vous invitez", ar: "إذا كنت المضيف" },
+                guest: { fr: "Si vous êtes invité", ar: "إذا كنت ضيفاً" },
+                favorites: { fr: "Favoris", ar: "المفضلة" },
+                noFavorites: { fr: "Aucun favori pour le moment.", ar: "لا توجد مفضلة حتى الآن." },
+                copied: { fr: "Copié dans le presse-papier !", ar: "تم النسخ!" },
+                saved: { fr: "Ajouté aux favoris", ar: "تمت الإضافة للمفضلة" },
+                removed: { fr: "Retiré des favoris", ar: "تمت الإزالة من المفضلة" }
+            },
+            categories: [
+                {
+                    id: 'prophetic', icon: 'book-open',
+                    title: { fr: "Modèle Prophétique", ar: "النموذج النبوي" },
+                    desc: { fr: "L'attitude du Prophète (ﷺ) en société.", ar: "هدي النبي ﷺ في مجالسه." },
+                    gradient: "from-blue-500 to-cyan-400",
+                    items: [
+                        { id: 'p1', title: { fr: "L'Humilité incarnée", ar: "التواضع والبساطة" }, content: { fr: "Il ne s'attribuait aucune place fixe pour éviter l'orgueil. Lorsqu'il rejoignait un groupe, il s'asseyait là où l'assemblée se terminait.", ar: "كان ﷺ لا يوطّن الأماكن منعا للكبر، وإذا انتهى إلى قوم جلس حيث ينتهي به المجلس ولا يتخطى رقاب الناس." }, type: "do" },
+                        { id: 'p2', title: { fr: "L'Art de l'Écoute", ar: "فن الاستماع والإنصات" }, content: { fr: "Il ne coupait jamais la parole et écoutait attentivement. Il accordait autant d'attention à la dernière personne à parler qu'à la première.", ar: "لم يكن يقطع حديث أحد أو ينصرف عنه تبرماً، بل يظل مستمعاً. وكان يعطي آخر المتحدثين نفس الاهتمام والإنصات الذي حظي به الأول." }, type: "do" },
+                        { id: 'p3', title: { fr: "L'Équité et la Bienveillance", ar: "المساواة والعدالة" }, content: { fr: "Il distribuait ses regards de manière équitable pour que chaque personne présente pense être la plus aimée de lui, sans distinction de rang.", ar: "كان يوزع نظراته على الجميع حتى يظن الجالس أنه أحب الناس إليه. الجميع أمامه في ميزان الحق سواء." }, type: "do" },
+                        { id: 'p4', title: { fr: "L'Ignorance feinte (At-Taghaful)", ar: "التغافل" }, content: { fr: "S'il voyait une chose déplaisante, il faisait semblant de ne rien remarquer pour préserver la dignité de l'auteur.", ar: "يتغافل عما لا يشتهي تكرماً وحفظاً لماء وجه فاعله. كان دائم البشر، سهل الخلق، ليّن الجانب." }, type: "info" }
+                    ]
+                },
+                {
+                    id: 'family', icon: 'heart',
+                    title: { fr: "Cercle Familial", ar: "الدائرة الأسرية" },
+                    desc: { fr: "Le bon comportement envers les parents.", ar: "الأدب والبر مع الوالدين." },
+                    gradient: "from-rose-500 to-pink-400",
+                    items: [
+                        { id: 'f1', title: { fr: "Patience au quotidien", ar: "أدب الحديث" }, content: { fr: "Ne leur reprochez pas leurs oublis. S'ils posent une question déjà répondue, ne dites pas 'Je te l'ai déjà dit'. Écoutez leurs histoires comme la première fois.", ar: "إذا سألك أحدهما عن شيء فلا تقل 'أخبرتك به سابقاً'. لا تسأم من تكرار حديثه وتفاعل مع القصة كأنك لأول مرة تسمعها." }, type: "do" },
+                        { id: 'f2', title: { fr: "Le Respect Absolu", ar: "الاحترام والتوقير" }, content: { fr: "Ne débattez pas avec eux. Face à eux, mariez le respect et la tendresse. Ne marchez pas devant eux et ne vous asseyez pas avant eux.", ar: "لا تجادله ولا تخالفه. اخفض لهما جناح الذل من الرحمة. لا تمشِ أمامه، ولا تجلس قبله." }, type: "dont" },
+                        { id: 'f3', title: { fr: "L'Entraide Proactive", ar: "المبادرة بالخدمة" }, content: { fr: "Ne soyez pas le réceptacle de vos problèmes. Vérifiez l'état de la maison, la validité des médicaments, et entretenez les appareils sans qu'ils ne le demandent.", ar: "لا تجعل والديك مستودعاً للمشكلات. تفقّد احتياجات البيت والأجهزة وقم بالصيانة دون طلب." }, type: "info" }
+                    ]
+                },
+                {
+                    id: 'children', icon: 'baby',
+                    title: { fr: "Enfants & Éducation", ar: "تربية الأولاد" },
+                    desc: { fr: "L'affection et l'équité.", ar: "الرحمة والعدل مع الأبناء." },
+                    gradient: "from-pink-400 to-rose-400",
+                    items: [
+                        { id: 'c1', title: { fr: "L'expression de l'affection", ar: "إظهار الرحمة والحب" }, content: { fr: "Embrassez vos enfants. Lorsqu'un homme lui dit qu'il n'avait jamais embrassé aucun de ses enfants, le Prophète répondit : 'Celui qui ne fait pas miséricorde ne la recevra pas.'", ar: "قبّل ﷺ الحسن بن علي، فقال الأقرع: إن لي عشرة من الولد ما قبلت منهم أحداً، فقال ﷺ: 'من لا يَرحم لا يُرحم'." }, type: "do" },
+                        { id: 'c2', title: { fr: "L'équité absolue", ar: "العدل بين الأبناء" }, content: { fr: "Soyez justes entre vos enfants, même dans les cadeaux. Favoriser un enfant détruit les liens de fraternité entre eux.", ar: "قال ﷺ: 'اتقوا الله واعدلوا بين أولادكم'. التفضيل في العطايا يزرع الحقد ويفسد قطيعة الرحم بينهم." }, type: "do" },
+                        { id: 'c3', title: { fr: "Ne pas leur mentir", ar: "الصدق مع الطفل" }, content: { fr: "Même pour calmer un enfant, ne lui faites pas de fausse promesse ('Viens je vais te donner ceci' sans rien donner), car cela est compté comme un mensonge.", ar: "لا تعد طفلك بشيء ثم تخلفه لإسكاته. قال ﷺ لمن نادت طفلها لتعطيه ولم تفعل: 'لو لم تعطيه شيئاً كُتبت عليك كذبة'." }, type: "dont" }
+                    ]
+                },
+                {
+                    id: 'social', icon: 'users',
+                    title: { fr: "Vie Sociale", ar: "الحياة الاجتماعية" },
+                    desc: { fr: "Invitations, rencontres et assises.", ar: "أدب الدعوات والجلوس." },
+                    gradient: "from-violet-500 to-purple-400",
+                    hasTabs: true,
+                    items: {
+                        host: [
+                            { id: 'sh1', title: { fr: "Informer sans questionner", ar: "أخبِر ولا تستخبِر" }, content: { fr: "Informez vos invités de la liste des personnes présentes et du motif. Les gens aiment savoir à quoi s'attendre.", ar: "أخبر من تدعوه بنوعية الحضور وسبب اللقاء، فكثير من الناس يحب إذا دعوته أن تخبره من سيأتي." }, type: "do" },
+                            { id: 'sh2', title: { fr: "Ne pas oublier les plus faibles", ar: "دعوة كبار السن والمرضى" }, content: { fr: "N'omettez pas d'inviter une personne âgée ou malade par peur de la fatiguer. Être invité lui sera moins lourd que d'être ignorée.", ar: "لا تترك دعوة كبير سن أو مريض شفقة به أو خوفاً من التكلف عليه، فحضوره أهون عليه من ظنونه." }, type: "do" }
+                        ],
+                        guest: [
+                            { id: 'sg1', title: { fr: "Trouver sa place", ar: "اختيار المكان" }, content: { fr: "Asseyez-vous là où vous trouvez de la place. Évitez la place d'honneur réservée aux aînés ou à l'invité principal pour éviter d'être déplacé.", ar: "إذا جئت للمجلس وهو ممتلئ فاجلس حيث ينتهي بك المجلس. وتجنب 'صدر المجلس' فهو لكبار السن وأصحاب الفضل." }, type: "info" },
+                            { id: 'sg2', title: { fr: "L'invité surprise", ar: "اصطحاب غير المدعوين" }, content: { fr: "Ne mettez pas vos hôtes dans l'embarras en ramenant une personne non invitée sans leur permission préalable. Les petites réunions sont calculées.", ar: "لا تصحب معك أحداً دون إذن الداعي، فالمناسبات الخاصة لها حساباتها من حيث سعة المكان والضيافة." }, type: "dont" },
+                            { id: 'sg3', title: { fr: "Faire de la place (Tafassuh)", ar: "التفسح في المجالس" }, content: { fr: "Si le rassemblement est bondé, serrez-vous pour faire de la place aux nouveaux arrivants. Bougez légèrement pour montrer votre attention.", ar: "إن كان المجلس مزدحماً فافسح للداخل. وإن لم تجد مكاناً، تحرك قليلاً لتشعره باهتمامك ومروءتك." }, type: "do" }
+                        ]
+                    }
+                },
+                {
+                    id: 'neighbors', icon: 'home',
+                    title: { fr: "Droits du Voisin", ar: "حق الجار" },
+                    desc: { fr: "Le respect et le partage.", ar: "الإحسان إلى الجيران." },
+                    gradient: "from-emerald-400 to-cyan-500",
+                    items: [
+                        { id: 'n1', title: { fr: "La patience face aux nuisances", ar: "الصبر على الأذى" }, content: { fr: "Le bon voisinage ne consiste pas seulement à ne pas faire de mal, mais surtout à supporter avec patience le mal et les défauts de son voisin.", ar: "ليس حسن الجوار كف الأذى، بل حسن الجوار الصبر على الأذى وتحمل زلات الجار." }, type: "info" },
+                        { id: 'n2', title: { fr: "Le partage et la générosité", ar: "تعاهد الجيران بالطعام" }, content: { fr: "Le Prophète (ﷺ) conseillait : 'Si tu prépares un bouillon, ajoute-y de l'eau pour en offrir un peu à tes voisins'.", ar: "أوصى ﷺ أبا ذر: 'إذا طبخت مرقة فأكثر ماءها، ثم انظر أهل بيت من جيرانك فأصبهم منها بمعروف'." }, type: "do" },
+                        { id: 'n3', title: { fr: "Le respect de la quiétude", ar: "عدم الإزعاج" }, content: { fr: "Celui dont le voisin n'est pas à l'abri de ses nuisances (bruit, regards indiscrets) n'est pas un véritable croyant.", ar: "قال ﷺ: 'والله لا يؤمن، من لا يأمن جاره بوائقه (شروره وأذاه)'." }, type: "dont" }
+                    ]
+                },
+                {
+                    id: 'hospitality', icon: 'coffee',
+                    title: { fr: "Hospitalité", ar: "آداب الطعام" },
+                    desc: { fr: "L'art de recevoir et manger.", ar: "فن الاستقبال والأكل بلباقة." },
+                    gradient: "from-amber-500 to-orange-400",
+                    items: [
+                        { id: 'h1', title: { fr: "La chaleur des mots", ar: "حسن اللقاء" }, content: { fr: "Un repas rassasie pour une heure, mais les belles paroles nourrissent l'affection pour des années. L'accueil compte plus que la quantité de nourriture.", ar: "الوليمة تشبع البطون ساعة، لكن الكلام الطيب يغذي مودة سنين. ليست المروءة بكثرة الطعام ولكن بحسن اللقاء." }, type: "do" },
+                        { id: 'h2', title: { fr: "Comportements à éviter", ar: "محذورات الأكل" }, content: { fr: "Les anciens détestaient ceux qui surveillent les plats, font du bruit en buvant, ou remettent un morceau croqué dans le plat commun.", ar: "حذر العرب من سلوكيات تقدح في المروءة: كالمتشاوف (يراقب الأطباق)، الرشاف (يصدر صوتاً عند الشرب)، والمرنّخ (يغمس لقمته المقطوعة)." }, type: "dont" }
+                    ]
+                },
+                {
+                    id: 'anger', icon: 'flame',
+                    title: { fr: "Maîtrise de Soi", ar: "إدارة الغضب" },
+                    desc: { fr: "L'intelligence émotionnelle.", ar: "الذكاء العاطفي وضبط النفس." },
+                    gradient: "from-orange-500 to-red-500",
+                    items: [
+                        { id: 'a1', title: { fr: "Le silence comme bouclier", ar: "الصمت عند الغضب" }, content: { fr: "Le Prophète (ﷺ) a enseigné : « Si l'un de vous se met en colère, qu'il se taise ! ». Cela évite les mots blessants et les décisions irréversibles.", ar: "قال ﷺ: «إذا غضب أحدكم فليسكت». فالصمت يمنع الكلمات الجارحة التي لا يمكن التراجع عنها." }, type: "do" },
+                        { id: 'a2', title: { fr: "Changer de posture physique", ar: "تغيير الوضعية الجسدية" }, content: { fr: "Une méthode prophétique : si vous êtes en colère en étant debout, asseyez-vous. Si la colère persiste, allongez-vous. Le corps influence l'esprit.", ar: "من الهدي النبوي: إذا غضب أحدكم وهو قائم فليجلس، فإن ذهب عنه الغضب وإلا فليضطجع." }, type: "do" }
+                    ]
+                },
+                {
+                    id: 'digital', icon: 'smartphone',
+                    title: { fr: "Adab Numérique", ar: "الأدب الرقمي" },
+                    desc: { fr: "Savoir-vivre sur les réseaux.", ar: "السلوك الراقي على الشبكات." },
+                    gradient: "from-indigo-500 to-blue-500",
+                    items: [
+                        { id: 'd1', title: { fr: "Vérifier avant de transférer", ar: "التثبت قبل النشر" }, content: { fr: "Transférer tout ce que l'on reçoit sans vérifier est considéré comme une forme de mensonge et propage des rumeurs destructrices.", ar: "كفى بالمرء كذباً أن يحدّث بكل ما سمع. يجب التثبت قبل إعادة إرسال أي معلومة." }, type: "dont" },
+                        { id: 'd2', title: { fr: "Le respect des conversations", ar: "حفظ أمانة المجالس الرقمية" }, content: { fr: "Il est interdit de capturer (screenshot) ou de transférer une conversation privée sans accord. Les assemblées virtuelles sont des dépôts.", ar: "المجالس بالأمانات، ولا يجوز تصوير أو نقل المحادثات الخاصة دون إذن صاحبها." }, type: "dont" },
+                        { id: 'd3', title: { fr: "Fuir les débats stériles", ar: "تجنب المراء والجدال" }, content: { fr: "Évitez les disputes sans fin dans l'espace des commentaires. L'Islam promeut la paix de l'esprit avant le fait d'avoir raison à tout prix.", ar: "تجنب الجدال العقيم في التعليقات. فقد ضمن النبي ﷺ بيتاً في ربض الجنة لمن ترك المراء وإن كان محقاً." }, type: "do" }
+                    ]
+                },
+                {
+                    id: 'public', icon: 'navigation',
+                    title: { fr: "Espace Public", ar: "حق الطريق" },
+                    desc: { fr: "Le code de conduite extérieur.", ar: "آداب الشارع والأماكن العامة." },
+                    gradient: "from-slate-400 to-gray-500",
+                    items: [
+                        { id: 'pu1', title: { fr: "Retirer ce qui nuit", ar: "إماطة الأذى" }, content: { fr: "Ramasser un déchet, une branche ou tout objet dangereux sur le trottoir ou la route est considéré comme une aumône et une branche de la foi.", ar: "إماطة الأذى عن الطريق (كشوك أو حجر أو قمامة) صدقة، وهي من شُعب الإيمان." }, type: "do" },
+                        { id: 'pu2', title: { fr: "Aider le passant perdu", ar: "إرشاد السبيل" }, content: { fr: "Prendre le temps d'orienter une personne qui cherche son chemin, ou aider quelqu'un à charger ses affaires est un devoir social.", ar: "إرشاد الضال (التائه) ودلالته على الطريق، وإعانة الرجل في دابته فتحمله عليها صدقة." }, type: "do" }
+                    ]
+                },
+                {
+                    id: 'work', icon: 'briefcase',
+                    title: { fr: "Travail & Commerce", ar: "آداب العمل" },
+                    desc: { fr: "L'éthique professionnelle.", ar: "الأمانة والسماحة في البيع." },
+                    gradient: "from-blue-600 to-indigo-600",
+                    items: [
+                        { id: 'w1', title: { fr: "L'Honnêteté absolue", ar: "الصدق والبيان" }, content: { fr: "Le vendeur doit impérativement montrer les défauts de sa marchandise. 'Celui qui nous trompe n'est pas des nôtres'.", ar: "يجب تبيين عيوب السلعة. قال ﷺ: 'من غشنا فليس منا'. والبيعان بالخيار ما لم يتفرقا." }, type: "do" },
+                        { id: 'w2', title: { fr: "Le respect de l'employé", ar: "إعطاء الأجير حقه" }, content: { fr: "Il est strictement interdit de retarder le salaire d'un employé. 'Donnez au travailleur son salaire avant que sa sueur ne sèche.'", ar: "قال ﷺ: 'أعطوا الأجير أجره، قبل أن يجف عرقه'. ومطل الغني (تأخير الدفع) ظلم." }, type: "dont" }
+                    ]
+                },
+                {
+                    id: 'sickness', icon: 'stethoscope',
+                    title: { fr: "Maladie & Deuil", ar: "عيادة المريض" },
+                    desc: { fr: "Le réconfort et la présence.", ar: "الآداب مع المريض وأهل الميت." },
+                    gradient: "from-cyan-400 to-blue-400",
+                    items: [
+                        { id: 'si1', title: { fr: "La visite allégée", ar: "تخفيف الزيارة" }, content: { fr: "La visite d'un malade doit être courte pour ne pas l'épuiser, sauf s'il exprime clairement le besoin de votre compagnie.", ar: "من السنة تخفيف الجلوس عند المريض لئلا يشق عليه، إلا إذا كان يأنس ببقائك ويطلبه." }, type: "do" },
+                        { id: 'si2', title: { fr: "Donner de l'espoir", ar: "تنفيس الأجل" }, content: { fr: "Face à un malade, ne soyez pas fataliste. Dites de bonnes paroles, priez pour sa guérison et donnez-lui de l'espoir.", ar: "إذا دخلتم على المريض فنفسوا له في أجله، فإن ذلك لا يرد شيئاً ويطيب نفسه." }, type: "do" }
+                    ]
+                },
+                {
+                    id: 'excuses', icon: 'handshake',
+                    title: { fr: "L'Art des Excuses", ar: "الاعتذار" },
+                    desc: { fr: "Accepter l'erreur et pardonner.", ar: "قبول العذر وإصلاح الزلل." },
+                    gradient: "from-amber-400 to-yellow-500",
+                    items: [
+                        { id: 'ex1', title: { fr: "Savoir s'excuser", ar: "الرجوع للحق" }, content: { fr: "Reconnaître ses torts est une preuve de noblesse. Si vous avez blessé quelqu'un, présentez des excuses claires sans vous justifier.", ar: "الرجوع إلى الحق فضيلة، والاعتذار عن الخطأ من شيم الكرام، ولا ينقص من قدر الإنسان." }, type: "do" },
+                        { id: 'ex2', title: { fr: "Accepter les excuses", ar: "قبول المعذرة" }, content: { fr: "Si un frère vient s'excuser auprès de vous, acceptez ses excuses. Refuser les excuses est un signe d'orgueil.", ar: "من اعتذر إليه أخوه فلم يقبل عذره لم يرد علي الحوض. من كمال المروءة قبول العذر والتجاوز عن الزلة." }, type: "do" }
+                    ]
+                }
+            ]
+        };
+
+        // --- STATE MANAGEMENT ---
+        let state = {
+            lang: localStorage.getItem('adab_lang') || 'fr',
+            theme: localStorage.getItem('adab_theme') || 'light',
+            view: 'dashboard',
+            activeTab: 'host',
+            favorites: JSON.parse(localStorage.getItem('adab_favorites')) || []
+        };
+
+        const elements = {
+            html: document.documentElement,
+            content: document.getElementById('app-content'),
+            headerLeft: document.getElementById('header-left'),
+            themeIcon: document.getElementById('theme-icon'),
+            langBtn: document.getElementById('lang-btn'),
+            toast: document.getElementById('toast'),
+            toastMsg: document.getElementById('toast-msg')
+        };
+
+        // --- CORE FUNCTIONS ---
+        
+        function init() {
+            lucide.createIcons();
+            applyTheme();
+            render();
+        }
+
+        function toggleLang() {
+            state.lang = state.lang === 'fr' ? 'ar' : 'fr';
+            localStorage.setItem('adab_lang', state.lang);
+            render();
+        }
+
+        function toggleTheme() {
+            state.theme = state.theme === 'light' ? 'dark' : 'light';
+            localStorage.setItem('adab_theme', state.theme);
+            applyTheme();
+        }
+
+        function applyTheme() {
+            if (state.theme === 'dark') {
+                elements.html.classList.add('dark');
+                elements.themeIcon.setAttribute('data-lucide', 'sun');
+            } else {
+                elements.html.classList.remove('dark');
+                elements.themeIcon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        function toggleFavorite(itemId) {
+            const index = state.favorites.indexOf(itemId);
+            if (index > -1) {
+                state.favorites.splice(index, 1);
+                showToast(appData.ui.removed[state.lang]);
+            } else {
+                state.favorites.push(itemId);
+                showToast(appData.ui.saved[state.lang]);
+            }
+            localStorage.setItem('adab_favorites', JSON.stringify(state.favorites));
+            
+            // Re-render only if in favorites view or to update icon state
+            if (state.view === 'favorites') renderFavorites();
+            else renderCategory(state.view);
+        }
+
+        // Share function using Web Share API or Clipboard fallback
+        async function shareCard(titleFr, titleAr, contentFr, contentAr) {
+            const shareText = `✨ *Adab - ${titleFr} / ${titleAr}*\n\n🇫🇷 ${contentFr}\n\n🇸🇦 ${contentAr}\n\n📱 _Partagé via l'application Adab_`;
+            
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Adab',
+                        text: shareText
+                    });
+                } catch (err) {
+                    console.log('Share cancelled', err);
+                }
+            } else {
+                // Fallback to clipboard
+                try {
+                    await navigator.clipboard.writeText(shareText);
+                    showToast(appData.ui.copied[state.lang]);
+                } catch (err) {
+                    // Very old browser fallback
+                    const textArea = document.createElement("textarea");
+                    textArea.value = shareText;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand("Copy");
+                    textArea.remove();
+                    showToast(appData.ui.copied[state.lang]);
+                }
+            }
+        }
+
+        function showToast(msg) {
+            elements.toastMsg.innerText = msg;
+            elements.toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+            setTimeout(() => {
+                elements.toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+            }, 2500);
+        }
+
+        function changeView(viewId) {
+            state.view = viewId;
+            render();
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function render() {
+            const isRtl = state.lang === 'ar';
+            elements.html.dir = isRtl ? 'rtl' : 'ltr';
+            elements.html.style.fontFamily = isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif";
+            
+            // Update Lang Button text
+            elements.langBtn.querySelector('span').innerText = isRtl ? 'FR' : 'عربي';
+
+            // Update Header Left
+            if (state.view === 'dashboard') {
+                elements.headerLeft.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200 dark:shadow-none">
+                        <i data-lucide="book-open" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <span class="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white">${appData.ui.title[state.lang]}</span>
+                `;
+            } else {
+                elements.headerLeft.innerHTML = `
+                    <button onclick="changeView('dashboard')" class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition-all">
+                        <i data-lucide="${isRtl ? 'chevron-right' : 'arrow-left'}" class="w-5 h-5"></i>
+                    </button>
+                `;
+            }
+            lucide.createIcons();
+
+            // Render Content
+            elements.content.innerHTML = '';
+            if (state.view === 'dashboard') {
+                renderDashboard(isRtl);
+            } else if (state.view === 'favorites') {
+                renderFavorites(isRtl);
+            } else {
+                renderCategory(state.view, isRtl);
+            }
+        }
+
+        function renderDashboard(isRtl) {
+            let html = `<div class="animate-slide-up">`;
+            
+            // Title & Favorites Button
+            html += `
+                <div class="flex justify-between items-center mb-6 mt-2">
+                    <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white">${appData.ui.greeting[state.lang]}</h2>
+                    <button onclick="changeView('favorites')" class="relative flex items-center justify-center w-12 h-12 rounded-full bg-white dark:bg-slate-800 shadow-sm text-rose-500 hover:scale-105 transition-transform">
+                        <i data-lucide="heart" class="w-6 h-6 ${state.favorites.length > 0 ? 'fill-current' : ''}"></i>
+                        ${state.favorites.length > 0 ? `<span class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-50 dark:border-slate-900">${state.favorites.length}</span>` : ''}
+                    </button>
+                </div>
+            `;
+
+            // Daily Card (Static for now, could be randomized)
+            html += `
+                <div class="relative rounded-3xl overflow-hidden mb-8 shadow-xl shadow-emerald-200/50 dark:shadow-none group transition-all">
+                    <div class="absolute inset-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500"></div>
+                    <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+                    <div class="relative p-6 text-white">
+                        <div class="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 mb-4">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                            ${appData.ui.dailyAdab[state.lang]}
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">${state.lang === 'fr' ? "L'Ignorance feinte" : "التغافل"}</h3>
+                        <p class="text-white/90 text-base leading-relaxed opacity-95">
+                            ${state.lang === 'fr' ? "S'il voyait une chose déplaisante, le Prophète (ﷺ) faisait semblant de ne rien remarquer pour préserver la dignité de l'auteur." : "يتغافل عما لا يشتهي تكرماً وحفظاً لماء وجه فاعله. كان دائم البشر، سهل الخلق."}
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            // Categories Grid
+            html += `<div class="grid grid-cols-2 gap-4">`;
+            appData.categories.forEach((cat, idx) => {
+                html += `
+                    <button onclick="changeView('${cat.id}')" class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-5 rounded-3xl shadow-sm border border-white dark:border-slate-700 hover:shadow-md hover:-translate-y-1 active:scale-95 transition-all text-left flex flex-col h-full group animate-fade-in" style="animation-delay: ${idx * 50}ms; text-align: ${isRtl ? 'right' : 'left'};">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-lg mb-4 transform group-hover:scale-110 transition-transform duration-300">
+                            <i data-lucide="${cat.icon}" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <h3 class="font-bold text-[1.1rem] text-slate-800 dark:text-slate-100 leading-tight mb-1">${cat.title[state.lang]}</h3>
+                    </button>
+                `;
+            });
+            html += `</div></div>`;
+            
+            elements.content.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function generateCardHtml(item, index, isRtl) {
+            let iconBg = "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300";
+            let iconName = "message-circle";
+            
+            if (item.type === 'do') {
+                iconBg = "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400";
+                iconName = "check";
+            } else if (item.type === 'dont') {
+                iconBg = "bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400";
+                iconName = "x";
+            } else if (item.type === 'info') {
+                iconBg = "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400";
+                iconName = "sparkles";
+            }
+
+            const isFav = state.favorites.includes(item.id);
+
+            // Escape strings for onclick handler
+            const safeTitleFr = item.title.fr.replace(/'/g, "\\'");
+            const safeTitleAr = item.title.ar.replace(/'/g, "\\'");
+            const safeContentFr = item.content.fr.replace(/'/g, "\\'");
+            const safeContentAr = item.content.ar.replace(/'/g, "\\'");
+
+            return `
+                <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-5 rounded-3xl shadow-sm border border-white dark:border-slate-700 transition-all duration-300 flex gap-4 animate-slide-up relative group" style="animation-delay: ${index * 50}ms; animation-fill-mode: both;">
+                    
+                    <div class="w-12 h-12 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0 mt-1">
+                        <i data-lucide="${iconName}" class="w-6 h-6 stroke-[2.5]"></i>
+                    </div>
+                    
+                    <div class="flex-1 pr-2">
+                        <h3 class="font-bold text-lg text-slate-800 dark:text-slate-100 mb-1">${item.title[state.lang]}</h3>
+                        <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-[1.05rem] mb-4">${item.content[state.lang]}</p>
+                        
+                        <!-- Actions (Share & Fav) -->
+                        <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
+                            <button onclick="shareCard('${safeTitleFr}', '${safeTitleAr}', '${safeContentFr}', '${safeContentAr}')" class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-700 text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors">
+                                <i data-lucide="share-2" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="toggleFavorite('${item.id}')" class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors ${isFav ? 'text-rose-500' : 'text-slate-500 hover:text-rose-500'}">
+                                <i data-lucide="heart" class="w-4 h-4 ${isFav ? 'fill-current' : ''}"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCategory(catId, isRtl) {
+            const cat = appData.categories.find(c => c.id === catId);
+            if(!cat) return;
+
+            let html = `<div class="animate-slide-up">`;
+            
+            // Header Cat
+            html += `
+                <div class="text-center mb-8 mt-2">
+                    <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-xl mb-5 transform rotate-3">
+                        <i data-lucide="${cat.icon}" class="w-10 h-10 text-white"></i>
+                    </div>
+                    <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white mb-2">${cat.title[state.lang]}</h2>
+                    <p class="text-slate-500 dark:text-slate-400 text-lg">${cat.desc[state.lang]}</p>
+                </div>
+            `;
+
+            // Tabs if applicable
+            if (cat.hasTabs) {
+                html += `
+                    <div class="bg-slate-200/50 dark:bg-slate-800 p-1.5 rounded-2xl mb-8 flex relative">
+                        <button onclick="state.activeTab = 'host'; renderCategory('${catId}', ${isRtl})" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all z-10 ${state.activeTab === 'host' ? 'text-slate-800 dark:text-white bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500 dark:text-slate-400'}">
+                            ${appData.ui.host[state.lang]}
+                        </button>
+                        <button onclick="state.activeTab = 'guest'; renderCategory('${catId}', ${isRtl})" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all z-10 ${state.activeTab === 'guest' ? 'text-slate-800 dark:text-white bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500 dark:text-slate-400'}">
+                            ${appData.ui.guest[state.lang]}
+                        </button>
+                    </div>
+                `;
+            }
+
+            // Cards
+            html += `<div class="space-y-4">`;
+            const items = cat.hasTabs ? cat.items[state.activeTab] : cat.items;
+            items.forEach((item, index) => {
+                html += generateCardHtml(item, index, isRtl);
+            });
+            html += `</div></div>`;
+
+            elements.content.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function renderFavorites(isRtl) {
+            let html = `<div class="animate-slide-up">`;
+            
+            html += `
+                <div class="flex items-center gap-3 mb-8 mt-2">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center shadow-lg shadow-rose-200 dark:shadow-none">
+                        <i data-lucide="heart" class="w-6 h-6 text-white fill-current"></i>
+                    </div>
+                    <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white">${appData.ui.favorites[state.lang]}</h2>
+                </div>
+            `;
+
+            if (state.favorites.length === 0) {
+                html += `
+                    <div class="text-center py-12 text-slate-400 dark:text-slate-500">
+                        <i data-lucide="heart-crack" class="w-12 h-12 mx-auto mb-4 opacity-50"></i>
+                        <p>${appData.ui.noFavorites[state.lang]}</p>
+                    </div>
+                `;
+            } else {
+                html += `<div class="space-y-4">`;
+                // Collect all favorite items
+                let favItems = [];
+                appData.categories.forEach(cat => {
+                    if(cat.hasTabs) {
+                        cat.items.host.forEach(item => { if(state.favorites.includes(item.id)) favItems.push(item); });
+                        cat.items.guest.forEach(item => { if(state.favorites.includes(item.id)) favItems.push(item); });
+                    } else {
+                        cat.items.forEach(item => { if(state.favorites.includes(item.id)) favItems.push(item); });
+                    }
+                });
+
+                favItems.forEach((item, index) => {
+                    html += generateCardHtml(item, index, isRtl);
+                });
+                html += `</div>`;
+            }
+            
+            html += `</div>`;
+            elements.content.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Initialize App
+        init();
+    </script>
+</body>
+</html>
